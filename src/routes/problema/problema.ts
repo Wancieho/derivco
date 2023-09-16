@@ -7,8 +7,11 @@ const fs = require("fs");
 const router: Router = express.Router();
 
 router.get("/problema", async (_: Request, res: Response) => {
+  let input: string;
+  let output: string;
+
   const fileStream = fs.createReadStream(
-    "./src/routes/problema/inputs/sample02.in"
+    "./src/routes/problema/inputs/sample03.in"
   );
 
   const calculateMostLikelyOutcomes = (d1: number, d2: number) => {
@@ -49,10 +52,12 @@ router.get("/problema", async (_: Request, res: Response) => {
       const b = parseInt(nums[1]);
       console.log(a);
       console.log(b);
-      console.log(calculateMostLikelyOutcomes(a, b).join(" "));
+      input = line;
+      output = calculateMostLikelyOutcomes(a, b).join(" ");
+      console.log(output);
     });
-  });
 
-  res.send("problema");
+    res.send(`Problem A: Input = (${input}) Output = (${output})`);
+  });
 });
 export default router;
