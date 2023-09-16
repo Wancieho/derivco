@@ -9,6 +9,8 @@ const app = express();
 
 app.use(cors());
 
+app.use("/", problema);
+
 app.listen(process.env.PORT, () => {
   console.info(`Server running on ${process.env.SERVER}:${process.env.PORT}`);
 });
