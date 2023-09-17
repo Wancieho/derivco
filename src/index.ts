@@ -4,6 +4,8 @@ import express from "express";
 import problema from "./routes/problema/problema";
 import problemb from "./routes/problemb/problemb";
 
+const fs = require("fs");
+
 dotenv.config();
 
 const app = express();

@@ -1,74 +1,133 @@
 import express, { Request, Response, Router } from "express";
 
+import { memoize } from "lodash";
 import readline from "readline";
 
 const fs = require("fs");
 
 const router: Router = express.Router();
 
-router.get("/problemb", async (_: Request, res: Response) => {
-  let input: string;
-  let output: string;
+function isWinnable(stacks: number[]): boolean {
+  // Check if the total number of coins is even.
+  if (stacks.reduce((a, b) => a + b) % 2 !== 0) {
+    return false;
+  }
 
-  const fileStream = fs.createReadStream("./src/routes/problemb/inputs/1.in");
+  // Initialize a memoization function to store results.
+  const memoizedIsWinnable = memoize((stacks: number[]): boolean => {
+    // Sort the stacks in descending order.
+    stacks.sort((a, b) => b - a);
 
-  const moves = (n: number, stacks: number[]): string => {
-    const totalCoins = stacks.reduce((acc, curr) => acc + curr, 0);
-    const moves: string[] = [];
-    let currentPlayer = "A";
+    // While there are at least two stacks with coins, continue playing.
+    while (stacks.filter((stack) => stack > 0).length >= 2) {
+      let stack1 = -1;
+      let stack2 = -1;
 
-    // Check if the total number of coins is even and there is at least one stack with an odd number of coins.
-    if (totalCoins % 2 === 0 && stacks.some((stack) => stack % 2 !== 0)) {
-      let oddStackIndex = -1;
-
-      // Find the index of the first stack with an odd number of coins.
-      for (let i = 0; i < n; i++) {
-        if (stacks[i] % 2 !== 0) {
-          oddStackIndex = i;
+      // Find the first non-empty stack for player A.
+      for (let i = 0; i < stacks.length; i++) {
+        if (stacks[i] > 0) {
+          stack1 = i;
           break;
         }
       }
 
-      while (stacks[oddStackIndex] > 0) {
-        const otherPlayerIndex = (oddStackIndex + 1) % n;
-
-        if (stacks[otherPlayerIndex] % 2 === 0) {
-          stacks[oddStackIndex]--;
-          stacks[otherPlayerIndex]--;
-          moves.push(`${oddStackIndex + 1} ${otherPlayerIndex + 1}`);
-        } else {
-          stacks[otherPlayerIndex]--;
-          stacks[otherPlayerIndex]--;
-          moves.push(`${otherPlayerIndex + 1} ${otherPlayerIndex + 1}`);
+      // Find the first non-empty stack for player B (different from player A's stack).
+      for (let i = stack1 + 1; i < stacks.length; i++) {
+        if (stacks[i] > 0) {
+          stack2 = i;
+          break;
         }
-
-        currentPlayer = currentPlayer === "A" ? "B" : "A";
       }
 
-      return `yes\n${moves.join("\n")}`;
-    } else {
-      return "no";
+      if (stack1 === -1 || stack2 === -1) {
+        // No valid move found, indicating the game cannot be won.
+        return false;
+      }
+
+      // Remove a coin from both stacks.
+      stacks[stack1]--;
+      stacks[stack2]--;
     }
-  };
+
+    // If all stacks are empty, the players have won the game.
+    return stacks.every((stack) => stack === 0);
+  });
+
+  return memoizedIsWinnable(stacks);
+}
+
+function getWinningMoves(stacks: number[]): [number, number][] | null {
+  // Check if the game is winnable.
+  if (!isWinnable(stacks)) {
+    return null;
+  }
+
+  // Initialize a queue to keep track of the next move.
+  const queue: [number, number][] = [[0, 1]];
+
+  // Initialize a list to store the winning moves.
+  const winningMoves: [number, number][] = [];
+
+  // While the queue is not empty, check if the current move is a winning move.
+  while (queue.length > 0) {
+    const [stack1, stack2] = queue.shift()!; // Use non-null assertion
+
+    // If both stacks are empty, then the players have won the game.
+    if (stacks[stack1] === 0 && stacks[stack2] === 0) {
+      winningMoves.push([stack1, stack2]);
+      break;
+    }
+
+    // Remove a coin from both stacks.
+    stacks[stack1]--;
+    stacks[stack2]--;
+
+    // Add the next possible moves to the queue.
+    for (let i = stack2 + 1; i < stacks.length; i++) {
+      if (stacks[i] > 0) {
+        queue.push([stack1, i]);
+      }
+    }
+  }
+
+  // Return the winning moves.
+  return winningMoves;
+}
+
+router.get("/problemb", async (_: Request, res: Response) => {
+  const fileStream = fs.createReadStream("./src/routes/problemb/inputs/1.in");
 
   const rl = readline.createInterface({
     input: fileStream,
   });
 
-  const lines: string[] = [];
+  let winningMoves;
+  let output: string[] = [];
+
+  const lines: any = [];
   rl.on("line", (line) => {
     lines.push(line);
   });
 
   rl.on("close", () => {
-    console.log(
-      moves(
-        parseInt(lines[0]),
-        lines[1].split(" ").map((line) => parseInt(line))
-      )
+    winningMoves = getWinningMoves(
+      lines[1].split(" ").map((line: any) => parseInt(line))
     );
 
-    res.send(`Problem A: Input = (${input}) Output = (${output})`);
+    if (winningMoves !== null) {
+      console.log("yes");
+      for (const [stack1, stack2] of winningMoves) {
+        // console.log(`${stack1 + 1} ${stack2 + 1}`);
+        output.push(`${stack1 + 1} ${stack2 + 1}`);
+      }
+      console.log(output);
+    } else {
+      console.log("no");
+    }
+
+    res.send(
+      `Problem A: Input = (${lines}) Output = (${winningMoves} ${output})`
+    );
   });
 });
 export default router;
